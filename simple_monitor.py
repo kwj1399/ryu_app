@@ -123,19 +123,19 @@ class simple_monitor(app_manager.RyuApp):
 
 					self._save_stats(self.port_speed[ev.msg.datapath.id], stat.port_no, speed, 5)
 class SimpleSwitchController(ControllerBase):
-		def __init__(self, req, link, data, **config):
-			super(SimpleSwitchController, self).__init__(req, link, data, **config)
-			self.simpl_switch_spp = data[simple_switch_instance_name]
-		@route('simpleswitch', url, methods=['GET'], requirements={'dpid': dpid_lib.DPID_PATTERN})
-		def list_port_speed(self, req, **kwargs):
-			simple_switch = self.simpl_switch_spp
-			dpid = dpid_lib.str_to_dpid(kwargs['dpid'])
+	def __init__(self, req, link, data, **config):
+		super(SimpleSwitchController, self).__init__(req, link, data, **config)
+		self.simpl_switch_spp = data[simple_switch_instance_name]
+	@route('simpleswitch', url, methods=['GET'], requirements={'dpid': dpid_lib.DPID_PATTERN})
+	def list_port_speed(self, req, **kwargs):
+		simple_switch = self.simpl_switch_spp
+		dpid = dpid_lib.str_to_dpid(kwargs['dpid'])
 			
-			if dpid not in simple_switch.port_speed:
-				return Response(status=404)
-			port_speed = simple_switch.port_speed.get(dpid,{})
-			body = json.dumps(port_speed)
-			return Response(content_type='application/json', body=body)
+		if dpid not in simple_switch.port_speed:
+			return Response(status=404)
+		port_speed = simple_switch.port_speed.get(dpid,{})
+		body = json.dumps(port_speed)
+		return Response(content_type='application/json', body=body)
 			
 				 
 			 
