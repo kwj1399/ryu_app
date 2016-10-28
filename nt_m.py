@@ -1,8 +1,8 @@
 '''
-@FileName:
-@Author:KWJ
-@UpdateTime:2016/10/10
-@Introduction:
+FileName:
+Author:KWJ
+UpdateTime:2016/10/10
+Introduction:
 '''
 
 
