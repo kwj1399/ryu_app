@@ -38,6 +38,17 @@ def get_osd_addr_dic():
             print ("get_osd_addr: osd.%d address is %s" % (osd_num, osd_addr))
     return osd_addr_dic
 
+# get osd and its' 'REWEIGHT'
+def get_osd_reweight_dic():
+    global OSD_DUMP
+    osd_reweight_dic = {}
+    for osd_num in range(len(OSD_DUMP['osds'])):
+        if ((OSD_DUMP['osds'][osd_num]['up']) and (OSD_DUMP['osds'][osd_num]['in'])) == 1:
+            osd_reweight_temp = float(OSD_DUMP['osds'][osd_num]['weight'])
+            osd_reweight_dic[OSD_DUMP['osds'][osd_num]['osd']] = osd_reweight_temp
+            print ("get_osd_reweight: osd.%d reweight is %s" % (osd_num, osd_reweight_temp))
+    return osd_reweight_dic
+
 # get osd and its' bandwidth for <length> times
 def get_osd_bw_dic(dict,length):
     pool = redis.ConnectionPool(host='172.25.1.2', port=6379, db=0)
@@ -68,13 +79,22 @@ def calc_osd_weight(osd_bw_dic):
     return osd_weight_dic
 
 # execute 'ceph osd reweight'
-def osd_reweight(osd_num,weight):
-    if (weight < 0.2) :
-        cmd = "ceph osd reweight %s %s &" % (osd_num,weight)
-        print("osd is %s, weight is %s "% (osd_num, weight))
-        print ("ceph osd reweight: calling %s" % cmd)
-        out = os.system(cmd)
-        print ("osd_reweight: %s" % out)
+def exec_osd_reweight(osd_weight,osd_reweight):
+    for osd_num in osd_weight.keys():
+        weight = osd_weight[osd_num]
+        reweight = osd_reweight[osd_num] 
+        if (weight < 0.8) and (reweight < 0.2):
+            continue
+        if (weight < 0.2) and (reweight == 1.0):
+            cmd = "ceph osd reweight %s %s &" % (osd_num,weight)
+            print("osd is %s, weight is %s "% (osd_num, weight))
+            print ("ceph osd reweight: calling %s" % cmd)
+            out = os.system(cmd)
+            print ("osd_reweight: %s" % out)
+        if (weight > 0.8) and (reweight != 1.0):
+            cmd = "ceph osd reweight %s 1.0 &" % osd_num
+            out = os.system(cmd)
+            print ("osd_reweight to 1.0: %s" % out)
 
 def main():
     times = 5
@@ -95,11 +115,13 @@ def main():
                 sum = sum + float(osd_bw[key][i])
             new_bw = float(sum/len(osd_bw[key]))
             new_osd_bw[key] = new_bw
+        print("new osd bandwidth is :")
         print(new_osd_bw)
         osd_weight = calc_osd_weight(new_osd_bw)
+        print("osd weight is :")
         print (osd_weight)
-        for osd_num in osd_weight.keys():
-            osd_reweight(osd_num,osd_weight[osd_num])
+        osd_reweight = get_osd_reweight_dic()
+        exec_osd_reweight(osd_weight,osd_reweight)
         print("sleeping 30 minutes...")
         time.sleep(1800)
 
