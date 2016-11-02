@@ -82,7 +82,7 @@ def calc_osd_weight(osd_bw_dic):
 def exec_osd_reweight(osd_weight,osd_reweight):
     for osd_num in osd_weight.keys():
         weight = osd_weight[osd_num]
-        reweight = osd_reweight[osd_num] 
+        reweight = osd_reweight[osd_num]
         if (weight < 0.8) and (reweight < 0.2):
             continue
         if (weight < 0.2) and (reweight == 1.0):
