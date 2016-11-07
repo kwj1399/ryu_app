@@ -1,6 +1,6 @@
 '''
 FileName:
-Author:KWJ
+Author:KWJ(kyson)
 UpdateTime:2016/10/10
 Introduction:
 '''
@@ -133,8 +133,8 @@ class NetworkMonitor(app_manager.RyuApp):
             return 0
 
     def _get_free_bw(self, capacity, speed):
-        # BW:Mbit/s
-        return max(capacity / 10**3 - speed * 8, 0)
+        # capacity:OFPPortDescStatsReply default is kbit/s
+        return max(capacity*10**3 - speed * 8, 0)
 
     def _get_time(self, sec, nsec):
         return sec + nsec / (10 ** 9)
@@ -200,7 +200,7 @@ class NetworkMonitor(app_manager.RyuApp):
         src = eth.src
         dpid = datapath.id
         self.mac_to_port.setdefault(dpid, {})
-        self.logger.info("packet in %s %s %s %s", dpid, src, dst, in_port)
+        #self.logger.info("packet in %s %s %s %s", dpid, src, dst, in_port)
         # learn a mac address to avoid FLOOD next time.
         self.mac_to_port[dpid][src] = in_port
 
@@ -343,7 +343,7 @@ class NetworkMonitor(app_manager.RyuApp):
             else:
                 state = "up"
 
-            port_feature = (config, state, p.curr_speed)
+            port_feature = (config, state, p.curr_speed*100)
             self.port_features[dpid][p.port_no] = port_feature
 
     @set_ev_cls(ofp_event.EventOFPPortStatus, MAIN_DISPATCHER)
