@@ -76,11 +76,11 @@ class NetworkMonitor(app_manager.RyuApp):
         datapath = ev.datapath
         if ev.state == MAIN_DISPATCHER:
             if not datapath.id in self.datapaths:
-                self.logger.info('register datapath: %016x', datapath.id)
+                #self.logger.info('register datapath: %016x', datapath.id)
                 self.datapaths[datapath.id] = datapath
         elif ev.state == DEAD_DISPATCHER:
             if datapath.id in self.datapaths:
-                self.logger.info('unregister datapath: %016x', datapath.id)
+                #self.logger.info('unregister datapath: %016x', datapath.id)
                 del self.datapaths[datapath.id]
 
     def _monitor(self):
@@ -117,7 +117,7 @@ class NetworkMonitor(app_manager.RyuApp):
         """
             Sending request msg to datapath
         """
-        self.logger.info('send stats request: %016x', datapath.id)
+        #self.logger.info('send stats request: %016x', datapath.id)
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
 
@@ -134,12 +134,14 @@ class NetworkMonitor(app_manager.RyuApp):
         # Calculate free bandwidth of port and save it.
         port_state = self.port_features.get(dpid).get(port_no)
         if port_state:
-            capacity = port_state[2]
-            curr_bw = self._get_free_bw(capacity, speed)
-            key = (dpid,port_no)
-            if key not in setting.SW_PORT:
-                self.free_bandwidth.setdefault(key, None)
-                self.free_bandwidth[(dpid, port_no)] = curr_bw
+            #not save Interfaces between switches
+            if port_state[2] != 0:
+                capacity = port_state[2]
+                curr_bw = self._get_free_bw(capacity, speed)
+                key = (dpid,port_no)
+                if key not in setting.SW_PORT:
+                    self.free_bandwidth.setdefault(key, None)
+                    self.free_bandwidth[(dpid, port_no)] = curr_bw
         else:
             self.logger.info("Fail in getting port state")
 
@@ -168,8 +170,8 @@ class NetworkMonitor(app_manager.RyuApp):
         return self._get_time(n_sec, n_nsec) - self._get_time(p_sec, p_nsec)
 
     def _save_ipfreebw(self, freebw, ip_port, hostinfo):
-        for key in ip_port.keys():
-            if key not in freebw:
+        for key in freebw.keys():
+            if key not in ip_port:
                 continue
             hostinfo.setdefault(ip_port[key], {'bw':0, 'delay':0})
             hostinfo[ip_port[key]]['bw']=freebw[key]
@@ -180,7 +182,7 @@ class NetworkMonitor(app_manager.RyuApp):
             hostinfo.setdefault(ip_port[key], {'bw': 0, 'delay': 0})
             hostinfo[ip_port[key]]['delay']=delay[key]
 
-    def _packet_analyze(self, data):
+    '''def _packet_analyze(self, data):
         packet_size = struct.calcsize('3i')
         data_length = len(data)
         if not data_length % packet_size == 0:
@@ -193,17 +195,18 @@ class NetworkMonitor(app_manager.RyuApp):
             delay = struct.unpack('3i', data[start_loc:end_loc])
             total_length += packet_size
         return max(delay, 0)
-    '''def _ack_udp(self):
-        return 0'''
+    def _ack_udp(self, dpid, port, msg_data):'''
+
+
 
     def _parse_udp(self, dpid, port, msg_data):
         eth_data = ethernet.ethernet.parser(msg_data)[2]
         ip_data = ipv4.ipv4.parser(eth_data)[2]
         udp_data = udp.udp.parser(ip_data)[2]
-        delay = self._packet_analyze(udp_data)
+        #delay = self._packet_analyze(udp_data)
         key = (dpid, port)
-        self.host_delay[key] = delay
-        # self._ack_udp(self.datapath, "I've got it")
+        self.host_delay[key] = udp_data
+        #self._ack_udp(dpid, port, "Successful !")
 
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     def switch_features_handler(self, ev):
@@ -267,19 +270,21 @@ class NetworkMonitor(app_manager.RyuApp):
         if eth_header.ethertype == ether_types.ETH_TYPE_LLDP or eth_header.ethertype == ether_types.ETH_TYPE_IPV6:
             return
 
-        # get ARP header to record ip_to_port
-        # ignore broadcast packet
-        if arp_header:
-            for p in arp_header:
-                key = (dpid, in_port)
-                value = p.src_ip
-                if key not in setting.SW_PORT:
+        # ignore interfaces between switches
+        if self.port_features and (self.port_features.get(dpid).get(in_port)[2] != 0):
+            #get ARP header to record ip_to_port
+            if arp_header:
+                for p in arp_header:
+                    key = (dpid, in_port)
+                    value = p.src_ip
                     self.ip_to_port.setdefault(key, value)
 
-        #get udp info and host delay
-        if ip_header and udp_header and (udp_header.dst_port == 12345):
-            self._parse_udp(dpid, in_port, msg.data)
-            self._save_ipdelay(self.host_delay, self.ip_to_port, self.host_info)
+            # get udp info and host delay
+            if ip_header and udp_header and (udp_header.dst_port == 12345):
+                self._parse_udp(dpid, in_port, msg.data)
+                self._save_ipdelay(self.host_delay, self.ip_to_port, self.host_info)
+                self.logger.info(msg)
+                self.logger.info(pkt)
 
         #self.logger.info("packet in %s %s %s %s", dpid, src, dst, in_port)
         # learn a mac address to avoid FLOOD next time.
